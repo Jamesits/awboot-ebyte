@@ -1096,7 +1096,8 @@ static int mctl_core_init(dram_para_t *para)
 static int auto_scan_dram_size(dram_para_t *para)
 {
 	uint32_t	  i = 0, j = 0, current_rank = 0;
-	uint32_t	  rank_count = 1, addr_line = 0;
+	uint32_t	  rank_count = 1;
+	uint32_t UNUSED_TRACE addr_line = 0;
 	uint32_t	  reg_val = 0, ret = 0, cnt = 0;
 	unsigned long mc_work_mode;
 	uint32_t	  rank1_addr = CONFIG_SYS_SDRAM_BASE;
@@ -1233,6 +1234,8 @@ static int auto_scan_dram_size(dram_para_t *para)
 		para->dram_para1 &= ~(0xfU << (16 * current_rank));
 		para->dram_para1 |= (i << (16 * current_rank));
 		trace("para->dram_para1 = 0x%x\r\n", para->dram_para1);
+
+		trace("rank %" PRIu32 " address lines = %" PRIu32 " \r\n", current_rank, addr_line);
 	}
 
 	/* check dual rank config */
