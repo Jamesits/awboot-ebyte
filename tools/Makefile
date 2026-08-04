@@ -1,7 +1,8 @@
 
-BUILD_DIR=build
+# Both may be overridden by the parent Makefile to build out of tree.
+BUILD_DIR ?= build
 
-MKSUNXI = mksunxi
+MKSUNXI ?= mksunxi
 
 CSRC    = mksunxi.c
 CXXSRC  =
@@ -24,7 +25,7 @@ tools: $(MKSUNXI)
 .SILENT:
 
 clean:
-	rm -rf build
+	rm -rf $(BUILD_DIR)
 	rm -f $(MKSUNXI)
 
 $(BUILD_DIR)/%.o : %.c
@@ -39,4 +40,5 @@ $(BUILD_DIR)/%.opp : %.cpp
 
 $(MKSUNXI): $(COBJS)
 	echo "  LD    $@"
+	mkdir -p $(@D)
 	$(CC) $(CFLAGS) $(COBJS) -o $(MKSUNXI)

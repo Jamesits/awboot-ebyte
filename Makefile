@@ -2,6 +2,14 @@
 TARGET := awboot
 CROSS_COMPILE ?= arm-none-eabi-
 
+# Output directory. Unset (the default) builds in tree, exactly as before; set
+# O=<dir> to redirect every generated file there instead. Make keeps running
+# from the source tree either way, so all source paths stay relative to it.
+O ?=
+OUT_DIR := $(or $(patsubst %/,%,$(O)),.)
+# Path prefix for generated files: empty in tree, "<dir>/" out of tree.
+OUT_PREFIX := $(patsubst ./%,%,$(OUT_DIR)/)
+
 # Log level defaults to info
 LOG_LEVEL ?= 30
 
@@ -51,6 +59,10 @@ HOSTSTRIP=strip
 
 MAKE=make
 
+# The tools sub-make runs from tools/, so hand it absolute paths.
+TOOLS_OUT_DIR := $(abspath $(OUT_DIR)/tools)
+MKSUNXI := $(TOOLS_OUT_DIR)/mksunxi
+
 SUPPORTED_VARIANTS := fel spi sdmmc emmc all
 VARIANT ?= emmc
 comma := ,
@@ -78,7 +90,8 @@ begin:
 	@$(CC) -v 2>&1 | tail -1
 
 build_revision:
-	echo "$(BUILD_REVISION)" > .build_revision
+	mkdir -p $(OUT_DIR)
+	echo "$(BUILD_REVISION)" > $(OUT_PREFIX).build_revision
 
 .PHONY: tools git begin build build_revision mkboot clean format
 .SILENT:
@@ -93,7 +106,7 @@ build:: build_revision
 define REGISTER_VARIANT =
 
 # Objects
-$(1)_OBJ_DIR = build-$(1)
+$(1)_OBJ_DIR = $(OUT_PREFIX)build-$(1)
 $(1)_BUILD_OBJS = $$(SRCS:%.c=$$($(1)_OBJ_DIR)/%.o)
 $(1)_BUILD_OBJSA = $$(ASRCS:%.S=$$($(1)_OBJ_DIR)/%.o)
 $(1)_OBJS = $$($(1)_BUILD_OBJSA) $$($(1)_BUILD_OBJS)
@@ -169,63 +182,70 @@ $(eval $(call REGISTER_VARIANT,all,CONFIG_BOOT_SPINAND=1 CONFIG_BOOT_SDCARD=1 CO
 endif
 
 clean::
-	rm -f $(TARGET)-*.bin
-	rm -f $(TARGET)-*.map
-	rm -f *.img
-	rm -f *.d
-	$(MAKE) -C tools clean
+	rm -f $(OUT_PREFIX)$(TARGET)-*.bin
+	rm -f $(OUT_PREFIX)$(TARGET)-*.map
+	rm -f $(OUT_PREFIX)*.img
+	rm -f $(OUT_PREFIX)*.d
+	rm -f $(OUT_PREFIX).build_revision
+	$(MAKE) -C tools clean BUILD_DIR="$(TOOLS_OUT_DIR)/build" MKSUNXI="$(MKSUNXI)"
 
 format:
 	find . -iname "*.h" -o -iname "*.c" | xargs clang-format --verbose -i
 
 tools:
-	$(MAKE) -C tools all
+	$(MAKE) -C tools all BUILD_DIR="$(TOOLS_OUT_DIR)/build" MKSUNXI="$(MKSUNXI)"
 
 
 mkboot: build tools
 ifneq ($(filter fel,$(BUILD_VARIANTS)),)
 	echo "FEL:"
-	$(SIZE) build-fel/$(TARGET)-boot.elf
-	cp -f build-fel/$(TARGET)-boot.bin $(TARGET)-boot-fel.bin
-	tools/mksunxi $(TARGET)-boot-fel.bin 512
+	$(SIZE) $(OUT_PREFIX)build-fel/$(TARGET)-boot.elf
+	cp -f $(OUT_PREFIX)build-fel/$(TARGET)-boot.bin $(OUT_PREFIX)$(TARGET)-boot-fel.bin
+	$(MKSUNXI) $(OUT_PREFIX)$(TARGET)-boot-fel.bin 512
 endif
 
 ifneq ($(filter spi,$(BUILD_VARIANTS)),)
 	echo "SPI:"
-	$(SIZE) build-spi/$(TARGET)-boot.elf
-	cp -f build-spi/$(TARGET)-boot.bin $(TARGET)-boot-spi.bin
-	cp -f build-spi/$(TARGET)-boot.bin $(TARGET)-boot-spi-4k.bin
-	tools/mksunxi $(TARGET)-boot-spi.bin 8192
-	tools/mksunxi $(TARGET)-boot-spi-4k.bin 8192 4096
+	$(SIZE) $(OUT_PREFIX)build-spi/$(TARGET)-boot.elf
+	cp -f $(OUT_PREFIX)build-spi/$(TARGET)-boot.bin $(OUT_PREFIX)$(TARGET)-boot-spi.bin
+	cp -f $(OUT_PREFIX)build-spi/$(TARGET)-boot.bin $(OUT_PREFIX)$(TARGET)-boot-spi-4k.bin
+	$(MKSUNXI) $(OUT_PREFIX)$(TARGET)-boot-spi.bin 8192
+	$(MKSUNXI) $(OUT_PREFIX)$(TARGET)-boot-spi-4k.bin 8192 4096
 endif
 
 ifneq ($(filter sdmmc,$(BUILD_VARIANTS)),)
 	echo "SDMMC:"
-	$(SIZE) build-sdmmc/$(TARGET)-boot.elf
-	cp -f build-sdmmc/$(TARGET)-boot.bin $(TARGET)-boot-sd.bin
-	tools/mksunxi $(TARGET)-boot-sd.bin 512
+	$(SIZE) $(OUT_PREFIX)build-sdmmc/$(TARGET)-boot.elf
+	cp -f $(OUT_PREFIX)build-sdmmc/$(TARGET)-boot.bin $(OUT_PREFIX)$(TARGET)-boot-sd.bin
+	$(MKSUNXI) $(OUT_PREFIX)$(TARGET)-boot-sd.bin 512
 endif
 
 ifneq ($(filter emmc,$(BUILD_VARIANTS)),)
 	echo "eMMC:"
-	$(SIZE) build-emmc/$(TARGET)-boot.elf
-	cp -f build-emmc/$(TARGET)-boot.bin $(TARGET)-boot-emmc.bin
-	tools/mksunxi $(TARGET)-boot-emmc.bin 512
+	$(SIZE) $(OUT_PREFIX)build-emmc/$(TARGET)-boot.elf
+	cp -f $(OUT_PREFIX)build-emmc/$(TARGET)-boot.bin $(OUT_PREFIX)$(TARGET)-boot-emmc.bin
+	$(MKSUNXI) $(OUT_PREFIX)$(TARGET)-boot-emmc.bin 512
 endif
 
 ifneq ($(filter all,$(BUILD_VARIANTS)),)
 	echo "ALL:"
-	$(SIZE) build-all/$(TARGET)-boot.elf
-	cp -f build-all/$(TARGET)-boot.bin $(TARGET)-boot-all.bin
-	cp -f build-all/$(TARGET)-boot.bin $(TARGET)-fel.bin
-	tools/mksunxi $(TARGET)-fel.bin 512
-	tools/mksunxi $(TARGET)-boot-all.bin 8192
+	$(SIZE) $(OUT_PREFIX)build-all/$(TARGET)-boot.elf
+	cp -f $(OUT_PREFIX)build-all/$(TARGET)-boot.bin $(OUT_PREFIX)$(TARGET)-boot-all.bin
+	cp -f $(OUT_PREFIX)build-all/$(TARGET)-boot.bin $(OUT_PREFIX)$(TARGET)-fel.bin
+	$(MKSUNXI) $(OUT_PREFIX)$(TARGET)-fel.bin 512
+	$(MKSUNXI) $(OUT_PREFIX)$(TARGET)-boot-all.bin 8192
 endif
 
-spi-boot.img: mkboot
-	rm -f spi-boot.img
-	dd if=$(TARGET)-boot-spi.bin of=spi-boot.img bs=2k
-	dd if=$(TARGET)-boot-spi.bin of=spi-boot.img bs=2k seek=32 # Second copy on page 32
-	dd if=$(TARGET)-boot-spi.bin of=spi-boot.img bs=2k seek=64 # Third copy on page 64
-	# dd if=linux/boot/$(DTB) of=spi-boot.img bs=2k seek=128 # DTB on page 128
-	# dd if=linux/boot/$(KERNEL) of=spi-boot.img bs=2k seek=256 # Kernel on page 256
+$(OUT_PREFIX)spi-boot.img: mkboot
+	rm -f $(OUT_PREFIX)spi-boot.img
+	dd if=$(OUT_PREFIX)$(TARGET)-boot-spi.bin of=$(OUT_PREFIX)spi-boot.img bs=2k
+	dd if=$(OUT_PREFIX)$(TARGET)-boot-spi.bin of=$(OUT_PREFIX)spi-boot.img bs=2k seek=32 # Second copy on page 32
+	dd if=$(OUT_PREFIX)$(TARGET)-boot-spi.bin of=$(OUT_PREFIX)spi-boot.img bs=2k seek=64 # Third copy on page 64
+	# dd if=linux/boot/$(DTB) of=$(OUT_PREFIX)spi-boot.img bs=2k seek=128 # DTB on page 128
+	# dd if=linux/boot/$(KERNEL) of=$(OUT_PREFIX)spi-boot.img bs=2k seek=256 # Kernel on page 256
+
+# Keep "make spi-boot.img" spelled the same way for out of tree builds.
+ifneq ($(OUT_PREFIX),)
+.PHONY: spi-boot.img
+spi-boot.img: $(OUT_PREFIX)spi-boot.img
+endif
