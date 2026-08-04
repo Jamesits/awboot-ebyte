@@ -20,7 +20,7 @@
 #define DMAC_CFG_TYPE_SRAM	(0)
 
 #define DMAC_CFG_TYPE_SPI0	   (22)
-#define DMAC_CFG_TYPE_SHMC0	   (20)
+#define DMAC_CFG_TYPE_SMHC0	   (20)
 #define DMAC_CFG_SRC_TYPE_NAND (5)
 
 /* DMA base config  */

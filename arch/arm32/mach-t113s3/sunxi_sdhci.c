@@ -837,7 +837,7 @@ bool sdhci_set_clock(sdhci_t *sdhci, smhc_clk_t clock)
 			hz = 200000000;
 			break;
 		default:
-			error("SHMC: invalid clock: %u\r\n", clock);
+			error("SMHC: invalid clock: %u\r\n", clock);
 			return false;
 	}
 

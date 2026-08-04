@@ -287,7 +287,7 @@ static bool mmc_send_op_cond(sdhci_t *hci, sdmmc_t *card)
 		}
 		udelay(5000);
 	} while (!(cmd.response[0] & OCR_BUSY) && retries--);
-	trace("SHMC: op_cond 0x%" PRIx32 "\r\n", cmd.response[0]);
+	trace("SMHC: op_cond 0x%" PRIx32 "\r\n", cmd.response[0]);
 
 	if (retries <= 0)
 		return FALSE;
@@ -640,12 +640,12 @@ static bool sdmmc_detect(sdhci_t *hci, sdmmc_t *card)
 				cmd.arg		 = (3 << 24) | (EXT_CSD_RST_N_FUNCTION << 16) | 1 << 8 | EXT_CSD_CMD_SET_NORMAL;
 
 				if (sdhci_transfer(hci, &cmd, NULL)) {
-					debug("SHMC: eMMC hardware reset signal enabled\r\n");
+					debug("SMHC: eMMC hardware reset signal enabled\r\n");
 				} else {
-					warning("SHMC: failed to enable eMMC hardware reset signal\r\n");
+					warning("SMHC: failed to enable eMMC hardware reset signal\r\n");
 				}
 			} else {
-				debug("SHMC: eMMC hardware reset signal already enabled\r\n");
+				debug("SMHC: eMMC hardware reset signal already enabled\r\n");
 			}
 #else
 			debug("SMHC: eMMC hardware reset signal skipped\r\n");
@@ -754,7 +754,7 @@ int sdmmc_init(sdmmc_pdata_t *data, sdhci_t *hci)
 
 	do {
 		if (sdmmc_detect(data->hci, &data->card) == TRUE) {
-			info("SHMC: %s card detected\r\n", data->card.version & SD_VERSION_SD ? "SD" : "MMC");
+			info("SMHC: %s card detected\r\n", data->card.version & SD_VERSION_SD ? "SD" : "MMC");
 			return 0;
 		}
 		mdelay(100);
