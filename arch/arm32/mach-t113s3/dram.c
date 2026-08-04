@@ -762,7 +762,7 @@ static void mctl_phy_ac_remapping(dram_para_t *para)
 	fuse   = (readl(SUNXI_SID_BASE + 0x28) & 0xf00) >> 8;
 	chipid = (readl(SUNXI_SID_BASE) & 0xff00) >> 8;
 
-	debug("DDR efuse: 0x%" PRIx32 ", chip id: 0x%" PRIx32 "\r\n", fuse, chipid);
+	trace("DDR efuse: 0x%" PRIx32 ", chip id: 0x%" PRIx32 "\r\n", fuse, chipid);
 
 	if (para->dram_type == SUNXI_DRAM_TYPE_DDR2) {
 		if (fuse == 15)
