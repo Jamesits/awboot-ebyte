@@ -32,13 +32,47 @@
 
 #define CONFIG_SYS_SDRAM_BASE SDRAM_BASE
 
-#define CONFIG_DRAM_CLK			 792
-#define CONFIG_SUNXI_DRAM_TYPE	 3
-#define CONFIG_DRAM_ZQ			 0x7b7bfb
-#define CONFIG_DRAM_SUNXI_ODT_EN 0x00
-#define CONFIG_DRAM_SUNXI_TPR11	 0x00340000
-#define CONFIG_DRAM_SUNXI_TPR12	 0x00000046
-#define CONFIG_DRAM_SUNXI_TPR13	 0x34000100
+/*
+ * DRAM parameters for the EBYTE ECM31 module (T113-S3/S4).
+ *
+ * These differ from the MangoPi/evb1 defaults this driver shipped with. The
+ * ones that matter for bringup are ODT_EN and TPR12: both feed the PHY DQ/DQS
+ * drive and delay settings that DQS gate training depends on, so the evb1
+ * values fail training here.
+ *
+ * Each is overridable from board.h, which is force-included before this file.
+ */
+#ifndef CONFIG_DRAM_CLK
+#define CONFIG_DRAM_CLK 792
+#endif
+#ifndef CONFIG_SUNXI_DRAM_TYPE
+#define CONFIG_SUNXI_DRAM_TYPE 3
+#endif
+#ifndef CONFIG_DRAM_ZQ
+#define CONFIG_DRAM_ZQ 0x7b7bfb
+#endif
+#ifndef CONFIG_DRAM_SUNXI_ODT_EN
+#define CONFIG_DRAM_SUNXI_ODT_EN 0x01
+#endif
+/* para1: 8 banks, 14 row bits, 2KB page. Only a fallback - autoscan sizes it. */
+#ifndef CONFIG_DRAM_SUNXI_PARA1
+#define CONFIG_DRAM_SUNXI_PARA1 0x000010e2
+#endif
+#ifndef CONFIG_DRAM_SUNXI_TPR7
+#define CONFIG_DRAM_SUNXI_TPR7 0x1621121e
+#endif
+#ifndef CONFIG_DRAM_SUNXI_TPR10
+#define CONFIG_DRAM_SUNXI_TPR10 0x00080000
+#endif
+#ifndef CONFIG_DRAM_SUNXI_TPR11
+#define CONFIG_DRAM_SUNXI_TPR11 0x00340000
+#endif
+#ifndef CONFIG_DRAM_SUNXI_TPR12
+#define CONFIG_DRAM_SUNXI_TPR12 0x00000025
+#endif
+#ifndef CONFIG_DRAM_SUNXI_TPR13
+#define CONFIG_DRAM_SUNXI_TPR13 0x34000100
+#endif
 
 #ifndef SUNXI_SID_BASE
 #define SUNXI_SID_BASE 0x3006200
@@ -1449,7 +1483,7 @@ unsigned long sunxi_dram_init(void)
 		.dram_type	 = CONFIG_SUNXI_DRAM_TYPE,
 		.dram_zq	 = CONFIG_DRAM_ZQ,
 		.dram_odt_en = CONFIG_DRAM_SUNXI_ODT_EN,
-		.dram_para1	 = 0x000010d2,
+		.dram_para1	 = CONFIG_DRAM_SUNXI_PARA1,
 		.dram_para2	 = 0,
 		.dram_mr0	 = 0x1c70,
 		.dram_mr1	 = 0x42,
@@ -1462,10 +1496,10 @@ unsigned long sunxi_dram_init(void)
 		.dram_tpr4	 = 0,
 		.dram_tpr5	 = 0x48484848,
 		.dram_tpr6	 = 0x00000048,
-		.dram_tpr7	 = 0x1620121e, // unused
+		.dram_tpr7	 = CONFIG_DRAM_SUNXI_TPR7, // unused
 		.dram_tpr8	 = 0,
 		.dram_tpr9	 = 0, // clock?
-		.dram_tpr10	 = 0,
+		.dram_tpr10	 = CONFIG_DRAM_SUNXI_TPR10,
 		.dram_tpr11	 = CONFIG_DRAM_SUNXI_TPR11,
 		.dram_tpr12	 = CONFIG_DRAM_SUNXI_TPR12,
 		.dram_tpr13	 = CONFIG_DRAM_SUNXI_TPR13,
