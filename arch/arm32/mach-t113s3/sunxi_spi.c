@@ -314,7 +314,7 @@ inline static uint32_t spi_query_txfifo(sunxi_spi_t *spi)
 	uint32_t val = read32(spi->base + SPI_FSR) & SPI_FSR_TF_CNT_MSK;
 
 	val >>= SPI_FSR_TF_CNT_POS;
-	return 0;
+	return val;
 }
 
 inline static uint32_t spi_query_rxfifo(sunxi_spi_t *spi)
