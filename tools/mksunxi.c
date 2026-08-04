@@ -43,18 +43,20 @@ struct boot_head_t {
  */
 static char* expand_pagesize(char *buffer, int *buflen, int pagesize)
 {
-	char				 *buffer2;
+	char				*buffer2;
 	int					offset, multiple;
+	size_t				newlen;
 
 	multiple = pagesize / BROM_PAGE_SIZE;
 
 	if (multiple == 1) return buffer;
 
-	buffer2 = malloc(*buflen * multiple);
-	memset(buffer2, 0, *buflen * multiple);
+	newlen	= (size_t)*buflen * multiple;
+	buffer2 = malloc(newlen);
+	memset(buffer2, 0, newlen);
 
 	for (offset = 0; offset < *buflen; offset += BROM_PAGE_SIZE) {
-		memcpy(buffer2 + (offset * multiple), buffer + offset, BROM_PAGE_SIZE);
+		memcpy(buffer2 + ((size_t)offset * multiple), buffer + offset, BROM_PAGE_SIZE);
 	}
 
 	free(buffer);
@@ -107,7 +109,8 @@ int main(int argc, char *argv[])
 	filelen = ftell(fp);
 	fseek(fp, 0L, SEEK_SET);
 
-	if (filelen <= sizeof(struct boot_head_t)) {
+	/* ftell() returns -1 on error, so compare as a signed value to catch that too */
+	if (filelen <= (int)sizeof(struct boot_head_t)) {
 		fclose(fp);
 		printf("The size of bootloader too small\n");
 		return -1;
@@ -116,7 +119,7 @@ int main(int argc, char *argv[])
 	buflen = ALIGN(filelen, padding);
 	buffer = malloc(buflen);
 	memset(buffer, 0, buflen);
-	if (fread(buffer, 1, filelen, fp) != filelen) {
+	if (fread(buffer, 1, filelen, fp) != (size_t)filelen) {
 		printf("Can't read bootloader\n");
 		free(buffer);
 		fclose(fp);
@@ -138,7 +141,7 @@ int main(int argc, char *argv[])
 	buffer = expand_pagesize(buffer, &buflen, pagesize);
 
 	fseek(fp, 0L, SEEK_SET);
-	if (fwrite(buffer, 1, buflen, fp) != buflen) {
+	if (fwrite(buffer, 1, buflen, fp) != (size_t)buflen) {
 		printf("Write bootloader error\n");
 		free(buffer);
 		fclose(fp);

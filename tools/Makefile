@@ -10,8 +10,9 @@ COBJS   = $(addprefix $(BUILD_DIR)/,$(CSRC:.c=.o))
 CXXOBJS = $(addprefix $(BUILD_DIR)/,$(CXXSRC:.cpp=.opp))
 
 INCLUDES = -I includes -I ../lib
-CFLAGS   = -O2 -std=gnu99 $(INCLUDES)
-CXXFLAGS = -O2 -std=gnu++11 $(INCLUDES)
+WARNINGS = -Wall -Wextra
+CFLAGS   = -O2 -std=gnu99 $(WARNINGS) $(INCLUDES)
+CXXFLAGS = -O2 -std=gnu++11 $(WARNINGS) $(INCLUDES)
 
 CC  ?= gcc
 CXX ?= g++

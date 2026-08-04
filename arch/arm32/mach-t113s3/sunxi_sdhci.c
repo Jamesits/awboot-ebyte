@@ -479,7 +479,7 @@ static bool read_bytes(sdhci_t *sdhci, sdhci_data_t *dat)
 
 static bool write_bytes(sdhci_t *sdhci, sdhci_data_t *dat)
 {
-	uint64_t count = dat->blkcnt * dat->blksz;
+	uint64_t count = (uint64_t)dat->blkcnt * dat->blksz;
 	u32		*tmp   = (u32 *)dat->buf;
 	u32		 status, err, done;
 	u32		 timeout = time_ms() + count;

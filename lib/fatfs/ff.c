@@ -3746,7 +3746,7 @@ static FRESULT mount_volume(/* FR_OK(0): successful, !=0: an error occurred */
 		fs->volbase	 = bsect;
 		fs->database = bsect + ld_dword(fs->win + BPB_DataOfsEx);
 		fs->fatbase	 = bsect + ld_dword(fs->win + BPB_FatOfsEx);
-		if (maxlba < (QWORD)fs->database + nclst * fs->csize)
+		if (maxlba < (QWORD)fs->database + (QWORD)nclst * fs->csize)
 			return FR_NO_FILESYSTEM; /* (Volume size must not be smaller than the size required) */
 		fs->dirbase = ld_dword(fs->win + BPB_RootClusEx);
 
@@ -3767,7 +3767,7 @@ static FRESULT mount_volume(/* FR_OK(0): successful, !=0: an error occurred */
 		bcl = ld_dword(fs->win + i + 20); /* Bitmap cluster */
 		if (bcl < 2 || bcl >= fs->n_fatent)
 			return FR_NO_FILESYSTEM; /* (Wrong cluster#) */
-		fs->bitbase = fs->database + fs->csize * (bcl - 2); /* Bitmap sector */
+		fs->bitbase = fs->database + (LBA_t)fs->csize * (bcl - 2); /* Bitmap sector */
 		for (;;) { /* Check if bitmap is contiguous */
 			if (move_window(fs, fs->fatbase + bcl / (SS(fs) / 4)) != FR_OK)
 				return FR_DISK_ERR;

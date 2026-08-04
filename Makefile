@@ -20,6 +20,10 @@ LIB_DIR := -L ./
 LIBS := -lgcc -nostdlib
 DEFINES := -DLOG_LEVEL=$(LOG_LEVEL) -DBUILD_REVISION='"$(BUILD_REVISION)"'
 
+# A literal '#' for use inside shell/grep patterns. Writing '\#' directly leaks
+# the backslash through to the command, which GNU grep >= 3.12 warns about.
+HASH := \#
+
 include arch/arch.mk
 include lib/lib.mk
 
@@ -28,6 +32,12 @@ CFLAGS += -fno-tree-vectorize -ffreestanding -fno-builtin
 CFLAGS += -ffunction-sections -fdata-sections -Os -std=c2x -Wall -Werror -Wno-unused-function $(INCLUDES) $(DEFINES)
 
 ASFLAGS += $(CFLAGS)
+
+# The SPL is a flat blob copied into SRAM and executed in place with no MMU, so
+# its single PT_LOAD segment is legitimately RWX. Silence the binutils >= 2.39
+# warning about that, but only if this linker understands the option.
+RWX_FLAG := -Wl,--no-warn-rwx-segments
+LDFLAGS += $(shell $(CC) $(RWX_FLAG) -nostdlib -x c /dev/null -o /dev/null >/dev/null 2>&1 && echo $(RWX_FLAG))
 
 LDFLAGS += $(CFLAGS) $(LIBS) -Wl,--gc-sections
 

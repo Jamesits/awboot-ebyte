@@ -26,13 +26,13 @@ SRCS	+=  $(SOC)/psci_board.c
 SRCS	+=  $(SOC)/security.c
 SRCS	+=  $(SOC)/cache_helpers.c
 
-USE_SPI = $(shell grep -E "^\#define CONFIG_BOOT_SPI" board.h)
+USE_SPI = $(shell grep -E "^$(HASH)define CONFIG_BOOT_SPI" board.h)
 ifneq ($(USE_SPI),)
 SRCS	+=  $(SOC)/sunxi_spi.c
 SRCS	+=  $(SOC)/sunxi_dma.c
 endif
 
-USE_SDMMC = $(shell grep -E "^\#define CONFIG_BOOT_(SDCARD|MMC)" board.h)
+USE_SDMMC = $(shell grep -E "^$(HASH)define CONFIG_BOOT_(SDCARD|MMC)" board.h)
 ifneq ($(USE_SDMMC),)
 SRCS	+=  $(SOC)/sdmmc.c
 SRCS	+=  $(SOC)/sunxi_sdhci.c
