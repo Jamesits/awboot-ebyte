@@ -2,12 +2,11 @@
 *.lfs
 
 build-*/*
-
+*boot.img
 tools/mksunxi
 
-*boot.img
-
 *.log
+.build_revision
 
 # Created by https://www.toptal.com/developers/gitignore/api/c,c++,visualstudiocode,macos,windows
 # Edit at https://www.toptal.com/developers/gitignore?templates=c,c++,visualstudiocode,macos,windows

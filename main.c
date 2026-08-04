@@ -150,7 +150,7 @@ int main(void)
 	board_init();
 
 	message("\r\n");
-	info("AWBoot r%" PRIu32 " starting...\r\n", (u32)BUILD_REVISION);
+	info("AWBoot %s starting...\r\n", BUILD_REVISION);
 
 	uint32_t clk_fail = sunxi_clk_get_fail_addr();
 	if (clk_fail != 0U) {

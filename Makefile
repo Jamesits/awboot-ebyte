@@ -7,10 +7,18 @@ LOG_LEVEL ?= 30
 
 SRCS := main.c board.c
 
+# Build revision: <short commit hash>-{dirty,clean}, or UNKNOWN outside a git repo
+GIT_HASH := $(shell git rev-parse --short HEAD 2>/dev/null)
+ifeq ($(GIT_HASH),)
+BUILD_REVISION := UNKNOWN
+else
+BUILD_REVISION := $(GIT_HASH)-$(if $(shell git status --porcelain 2>/dev/null),dirty,clean)
+endif
+
 INCLUDE_DIRS :=-I . -I include -I lib
 LIB_DIR := -L ./
 LIBS := -lgcc -nostdlib
-DEFINES := -DLOG_LEVEL=$(LOG_LEVEL) -DBUILD_REVISION=$(shell cat .build_revision)
+DEFINES := -DLOG_LEVEL=$(LOG_LEVEL) -DBUILD_REVISION='"$(BUILD_REVISION)"'
 
 include arch/arch.mk
 include lib/lib.mk
@@ -60,13 +68,13 @@ begin:
 	@$(CC) -v 2>&1 | tail -1
 
 build_revision:
-	@expr `cat .build_revision` + 1 > .build_revision
+	echo "$(BUILD_REVISION)" > .build_revision
 
-.PHONY: tools git begin build mkboot clean format
+.PHONY: tools git begin build build_revision mkboot clean format
 .SILENT:
 
 git:
-	cp -f tools/hooks/* .git/hooks/
+	if [ -d .git ]; then cp -f tools/hooks/* .git/hooks/; fi
 
 build:: build_revision
 
