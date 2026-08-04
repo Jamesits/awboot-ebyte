@@ -1,6 +1,6 @@
 # Target
 TARGET := awboot
-CROSS_COMPILE ?= arm-none-eabi
+CROSS_COMPILE ?= arm-none-eabi-
 
 # Log level defaults to info
 LOG_LEVEL ?= 30
@@ -23,10 +23,10 @@ ASFLAGS += $(CFLAGS)
 
 LDFLAGS += $(CFLAGS) $(LIBS) -Wl,--gc-sections
 
-STRIP=$(CROSS_COMPILE)-strip
-CC=$(CROSS_COMPILE)-gcc
-SIZE=$(CROSS_COMPILE)-size
-OBJCOPY=$(CROSS_COMPILE)-objcopy
+STRIP=$(CROSS_COMPILE)strip
+CC=$(CROSS_COMPILE)gcc
+SIZE=$(CROSS_COMPILE)size
+OBJCOPY=$(CROSS_COMPILE)objcopy
 
 HOSTCC=gcc
 HOSTSTRIP=strip
