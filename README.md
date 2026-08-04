@@ -2,27 +2,40 @@
 
 Small linux bootloader for Allwinner T113-s3, T113-s4, V851s
 
+Changes to the upstream project:
+
+- Fixed memory training issue on Ebyte ECM31-B series hardware
+- Small lint fixes, code cleanup, CI
+
+Notes:
+
+- `arch/arm32/mach-t113s3` is used to support all S3/S4 CPUs
+
 ## Building
 
-Run `make VARIANT=all LOG_LEVEL=40`.  
-This builds every supported output (fel/spi/sdmmc/emmc) and produces awboot binaries with valid EGON headers.  
+Prerequisities:
+- Ubuntu: `gcc-arm-none-eabi libstdc++-arm-none-eabi-dev`
+- Arch Linux: `arm-none-eabi-gcc arm-none-eabi-newlib`
+
+Run `make VARIANT=all LOG_LEVEL=40`.
+This builds every supported output (fel/spi/sdmmc/emmc) and produces awboot binaries with valid EGON headers.
 `VARIANT` accepts a comma‑separated list (for example `VARIANT=fel,emmc`) if you only need a subset, and `LOG_LEVEL`
-continues to control verbosity (default 30 = info).  
+continues to control verbosity (default 30 = info).
 
 ## Using
 
-You will need [xfel](https://github.com/xboot/xfel) for uploading the file to memory or SPI flash.  
-This it not needed for writing to an SD card.  
+You will need [xfel](https://github.com/xboot/xfel) for uploading the file to memory or SPI flash.
+This it not needed for writing to an SD card.
 
 ### FEL memory boot:
-1. Build the variant that includes FEL (`make VARIANT=fel …`).  
-2. Provide your kernel/dtb (and optional initrd).  
+1. Build the variant that includes FEL (`make VARIANT=fel …`).
+2. Provide your kernel/dtb (and optional initrd).
 3. Run the helper script:
 ```
 ./tools/fel.sh path/to/zImage path/to/board.dtb [path/to/initrd]
 ```
 The script uploads the freshly built `awboot-fel.bin`, kernel, DTB and optional initrd, updates the FEL mailboxes and
-boots the SoC automatically.  
+boots the SoC automatically.
 
 ### FEL SPI NOR boot:
 ```
@@ -41,11 +54,11 @@ xfel reset
 ```
 
 ### SD Card boot:
-- create an MBR or GPT partition table and a FAT32 partition with an offset of 4MB or more using fdisk.  
+- create an MBR or GPT partition table and a FAT32 partition with an offset of 4MB or more using fdisk.
 ```
 sudo fdisk /dev/(your sd device)
 ```
-write awboot-boot.bin to sdcard with an offset of:  
+write awboot-boot.bin to sdcard with an offset of:
 - MBR: 8KB (sector 16)
 - GPT: 128KB (sector 256)
 ```
