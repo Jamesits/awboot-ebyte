@@ -516,17 +516,13 @@ static unsigned int of_get_property_cells(void *blob, int nodeoffset, const char
 
 static void of_encode_cells_be(uint8_t *dst, unsigned int cells, uint64_t value)
 {
-	if (cells > 1U) {
-		uint32_t hi = (uint32_t)(value >> 32);
-		uint32_t lo = (uint32_t)(value & 0xffffffffU);
-		hi = swap_uint32(hi);
-		lo = swap_uint32(lo);
-		_memcpy(dst, &hi, sizeof(hi));
-		_memcpy(dst + sizeof(hi), &lo, sizeof(lo));
-	} else {
-		uint32_t val32 = (uint32_t)(value & 0xffffffffU);
-		val32 = swap_uint32(val32);
-		_memcpy(dst, &val32, sizeof(val32));
+	unsigned int bytes = (cells > 1U) ? 8U : 4U;
+	unsigned int i;
+
+	/* Store big-endian directly: keeps dst alignment-agnostic and avoids
+	 * feeding swap_uint32()'s volatile temporaries into _memcpy(). */
+	for (i = 0; i < bytes; i++) {
+		dst[i] = (uint8_t)(value >> ((bytes - 1U - i) * 8U));
 	}
 }
 
