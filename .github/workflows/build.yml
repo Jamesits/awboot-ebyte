@@ -1,0 +1,43 @@
+on:
+  pull_request:
+    paths-ignore:
+      - 'README.md'
+  push:
+    paths-ignore:
+      - 'README.md'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: block
+          allowed-endpoints: >
+            api.github.com:443
+            github.com:443
+            uploads.github.com:443
+            archive.ubuntu.com:443
+            azure.archive.ubuntu.com:80
+            dl.google.com:443
+            packages.microsoft.com:443
+
+      - uses: actions/checkout@v7
+
+      - run: |
+          sudo apt update -y
+          sudo apt install -y gcc-arm-none-eabi libstdc++-arm-none-eabi-dev
+
+      - run: |
+          make VARIANT=all LOG_LEVEL=30
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: awboot-prod
+          path: '*.bin'
