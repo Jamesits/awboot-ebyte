@@ -690,9 +690,28 @@ static const uint8_t ac_remapping_tables[][22] = {
 };
 
 /*
+ * Chip id byte: SID word 0, bits 15:8.
+ *
+ * A few packages carry the DRAM die alongside the SoC, with the address and
+ * command lines routed straight through. Those must not be remapped at all,
+ * whatever the DDR efuse reads, so the chip id is checked ahead of it.
+ */
+#define SUNXI_CHIPID_D1_H	 0x50
+#define SUNXI_CHIPID_H133	 0x7c
+#define SUNXI_CHIPID_MCP_72	 0x72 /* in-package DRAM, no AC remapping */
+#define SUNXI_CHIPID_MCP_73	 0x73 /* in-package DRAM, no AC remapping */
+#define SUNXI_CHIPID_T113_S4 0x68 /* in-package DRAM, no AC remapping */
+
+/*
  * This routine chooses one of several remapping tables for 22 lines.
  * It is unclear which lines are being remapped. It seems to pick
  * table cfg7 for the Nezha board.
+ *
+ * The chip id takes precedence over the DDR efuse. Consulting it only from
+ * inside a single efuse case, as this used to, leaves an in-package-DRAM part
+ * taking a remapping table it must not have. That puts the address and command
+ * lines on the wrong pins, so the DRAM never responds and training dies as
+ * "auto scan dram rank & width failed".
  */
 static void mctl_phy_ac_remapping(dram_para_t *para)
 {
@@ -707,47 +726,50 @@ static void mctl_phy_ac_remapping(dram_para_t *para)
 		return;
 
 	fuse   = (readl(SUNXI_SID_BASE + 0x28) & 0xf00) >> 8;
-	chipid = (readl(SUNXI_SID_BASE) & 0xffff);
+	chipid = (readl(SUNXI_SID_BASE) & 0xff00) >> 8;
 
-	trace("DDR efuse: 0x%" PRIx32 "\r\n", fuse);
-	trace("chip id efuse: 0x%" PRIx32 "\r\n", chipid);
+	debug("DDR efuse: 0x%" PRIx32 ", chip id: 0x%" PRIx32 "\r\n", fuse, chipid);
 
 	if (para->dram_type == SUNXI_DRAM_TYPE_DDR2) {
 		if (fuse == 15)
 			return;
 		if (fuse == 10) // Support D1s
 			cfg = ac_remapping_tables[0];
-		cfg = ac_remapping_tables[6];
-	} else {
-		if (para->dram_tpr13 & 0xc0000) {
+		else
+			cfg = ac_remapping_tables[6];
+	} else if ((para->dram_tpr13 & 0xc0000) || chipid == SUNXI_CHIPID_D1_H || chipid == SUNXI_CHIPID_H133 ||
+			   chipid == SUNXI_CHIPID_MCP_72 || chipid == SUNXI_CHIPID_MCP_73 || chipid == SUNXI_CHIPID_T113_S4) {
+		/* Package override: decided by chip id, the DDR efuse is ignored. */
+		if ((para->dram_tpr13 & BIT(18)) || chipid == SUNXI_CHIPID_D1_H)
 			cfg = ac_remapping_tables[7];
-		} else {
-			switch (fuse) {
-				case 8:
-					cfg = ac_remapping_tables[2];
-					break;
-				case 9:
-					cfg = ac_remapping_tables[3];
-					break;
-				case 10:
-					if (chipid == 0x6800) { // 0x6800 is T113-S4 no remap
-						cfg = ac_remapping_tables[0];
-					} else {
-						cfg = ac_remapping_tables[5];
-					}
-					break;
-				case 11:
-					cfg = ac_remapping_tables[4];
-					break;
-				default:
-				case 12:
-					cfg = ac_remapping_tables[1];
-					break;
-				case 13:
-				case 14:
-					cfg = ac_remapping_tables[0];
-					break;
-			}
+		else if ((para->dram_tpr13 & BIT(19)) || chipid == SUNXI_CHIPID_H133)
+			cfg = ac_remapping_tables[8];
+		else
+			cfg = ac_remapping_tables[0]; /* no remapping */
+	} else {
+		switch (fuse) {
+			case 8:
+				cfg = ac_remapping_tables[2];
+				break;
+			case 9:
+				cfg = ac_remapping_tables[3];
+				break;
+			case 10:
+				cfg = ac_remapping_tables[5];
+				break;
+			case 11:
+				cfg = ac_remapping_tables[4];
+				break;
+			case 12:
+				cfg = ac_remapping_tables[1];
+				break;
+			case 13:
+			case 14:
+				cfg = ac_remapping_tables[0];
+				break;
+			default:
+				cfg = ac_remapping_tables[4];
+				break;
 		}
 	}
 
