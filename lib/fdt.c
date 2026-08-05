@@ -263,6 +263,27 @@ static int of_get_node_offset(void *blob, const char *name, int *offset)
 	return 0;
 }
 
+/* The root node is the one node of_get_node_offset() cannot return: its walk
+ * starts from the root's first child. Its offset is where the root's own
+ * property list begins, which is the same convention of_get_node_offset()
+ * returns and of_get_property_offset_by_name() expects. */
+static int of_get_root_node_offset(void *blob, int *offset)
+{
+	unsigned int token;
+	int			 nextoffset;
+
+	if (of_get_token_nextoffset(blob, 0, &nextoffset, &token) != 0) {
+		return -1;
+	}
+	if (token != OF_DT_TOKEN_NODE_BEGIN) {
+		return -1;
+	}
+
+	*offset = nextoffset;
+
+	return 0;
+}
+
 /* -------------------------------------------------------- */
 
 static int of_blob_move_dt_struct(void *blob, void *point, int oldlen, int newlen)
@@ -514,6 +535,29 @@ static unsigned int of_get_property_cells(void *blob, int nodeoffset, const char
 	return cells;
 }
 
+/* First word of a property's value, for the single-cell properties that
+ * describe the shape of the tree (#address-cells, #size-cells). */
+static int of_get_property_u32(void *blob, int nodeoffset, const char *property_name, uint32_t *value)
+{
+	int			  property_offset;
+	unsigned int *plen;
+	unsigned int *pvalue;
+
+	if (of_get_property_offset_by_name(blob, nodeoffset, property_name, &property_offset) != 0) {
+		return -1;
+	}
+
+	plen = (unsigned int *)of_dt_struct_offset(blob, property_offset + 4);
+	if (swap_uint32(*plen) < 4U) {
+		return -1;
+	}
+
+	pvalue = (unsigned int *)of_dt_struct_offset(blob, property_offset + 12);
+	*value = swap_uint32(*pvalue);
+
+	return 0;
+}
+
 static void of_encode_cells_be(uint8_t *dst, unsigned int cells, uint64_t value)
 {
 	unsigned int bytes = (cells > 1U) ? 8U : 4U;
@@ -621,10 +665,35 @@ int fdt_update_initrd(void *blob, uint32_t start, uint32_t end)
  */
 int fdt_update_memory(void *blob, uint32_t mem_bank, uint32_t mem_size)
 {
-	int			 nodeoffset;
-	unsigned int data[4];
-	int			 valuelen;
-	int			 ret;
+	int		 nodeoffset;
+	int		 rootoffset;
+	uint8_t	 data[16];
+	uint32_t addr_cells = 1U;
+	uint32_t size_cells = 1U;
+	int		 valuelen;
+	int		 ret;
+
+	/* "reg" is written in the cell widths the root node declares, not in a
+	 * fixed pair of 32-bit words: the mainline sunxi dtsi declares
+	 * #address-cells/#size-cells 1/1, the vendor BSP dtsi declares 2/2. Get it
+	 * wrong on a 2/2 tree and the 8 bytes written here are shorter than the 16
+	 * the kernel needs for a single entry, so early_init_dt_scan_memory()
+	 * (drivers/of/fdt.c) exits its loop immediately, no memory at all is
+	 * registered, and the kernel dies before the console is up.
+	 *
+	 * A root without the properties is not a tree this can be guessed for, so
+	 * keep to the 1/1 that was assumed before and let the kernel complain. */
+	ret = of_get_root_node_offset(blob, &rootoffset);
+	if (ret || of_get_property_u32(blob, rootoffset, "#address-cells", &addr_cells) ||
+		of_get_property_u32(blob, rootoffset, "#size-cells", &size_cells)) {
+		warning("DT: root declares no #address-cells/#size-cells, assuming 1/1\r\n");
+		addr_cells = 1U;
+		size_cells = 1U;
+	}
+	if ((addr_cells == 0U) || (addr_cells > 2U) || (size_cells == 0U) || (size_cells > 2U)) {
+		warning("DT: cannot write /memory reg in %" PRIu32 "/%" PRIu32 " cells\r\n", addr_cells, size_cells);
+		return -1;
+	}
 
 	ret = of_get_node_offset(blob, "memory", &nodeoffset);
 	if (ret) {
@@ -644,9 +713,9 @@ int fdt_update_memory(void *blob, uint32_t mem_bank, uint32_t mem_size)
 	}
 
 	/* set "reg" property */
-	data[0]	 = swap_uint32(mem_bank);
-	data[1]	 = swap_uint32(mem_size);
-	valuelen = 8;
+	of_encode_cells_be(data, addr_cells, (uint64_t)mem_bank);
+	of_encode_cells_be(data + (addr_cells * 4U), size_cells, (uint64_t)mem_size);
+	valuelen = (int)((addr_cells + size_cells) * 4U);
 	ret		 = of_set_property(blob, nodeoffset, "reg", data, valuelen);
 	if (ret) {
 		warning("DT: could not set reg property\r\n");
