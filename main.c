@@ -77,9 +77,16 @@ static void apply_fel_mailboxes(image_info_t *img)
 			fatal("FEL: initrd 0x%08" PRIx32 "-0x%08" PRIx32 " outside SDRAM\r\n",
 						initrd_start, (uint32_t)initrd_end_64);
 		}
-		if ((dtb_addr != 0U) && (initrd_end_64 > (uint64_t)dtb_addr)) {
-			fatal("FEL: initrd overlaps DTB (initrd end 0x%08" PRIx32 ", dtb @ 0x%08" PRIx32 ")\r\n",
-						(uint32_t)initrd_end_64, dtb_addr);
+		// Which side of the DTB the initrd sits on is the host's decision, so
+		// test for overlap rather than for an ordering. tools/fel.sh puts it
+		// above, matching the load map in board.h; older revisions packed it
+		// underneath. The DTB's real size is not in the mailboxes, so the same
+		// guard the map reserves for it is assumed here.
+		const uint64_t dtb_end_64 = (uint64_t)dtb_addr + (uint64_t)CONFIG_DTB_GUARD_SIZE;
+		if ((dtb_addr != 0U) && (initrd_start < (uint32_t)dtb_end_64) &&
+			(initrd_end_64 > (uint64_t)dtb_addr)) {
+			fatal("FEL: initrd 0x%08" PRIx32 "-0x%08" PRIx32 " overlaps DTB @ 0x%08" PRIx32 "\r\n",
+						initrd_start, (uint32_t)initrd_end_64, dtb_addr);
 		}
 		img->initrd_dest = (u8 *)initrd_start;
 		img->initrd_size = initrd_size;
@@ -94,6 +101,34 @@ static void apply_fel_mailboxes(image_info_t *img)
 			 (uint32_t)(uintptr_t)img->dtb_dest,
 			 (uint32_t)(uintptr_t)img->initrd_dest,
 			 (uint32_t)(uintptr_t)img->initrd_size);
+}
+#endif
+
+#if CONFIG_BOOT_SDCARD || CONFIG_BOOT_MMC
+// How much of an initrd fits at CONFIG_INITRD_LOAD_ADDR: everything up to the
+// top of the DRAM the kernel is allowed to use, capped at the size awboot is
+// willing to accept. Zero means this board has nowhere to put one.
+//
+// The archive sits at the top of the load map precisely so that this is a
+// subtraction rather than a reservation - see the map in board.h.
+static u32 initrd_capacity(void)
+{
+	const uint64_t start   = (uint64_t)CONFIG_INITRD_LOAD_ADDR;
+	const uint64_t top	 = (uint64_t)dram_get_top();
+	const uint64_t reserve = (uint64_t)CONFIG_PSCI_DRAM_RESERVE;
+
+	// PSCI keeps the top of DRAM and fdt_update_memory() hides it from the
+	// kernel, so the initrd has to stop below it rather than at dram_get_top().
+	if (top <= (start + reserve)) {
+		return 0U;
+	}
+
+	uint64_t space = top - reserve - start;
+	if (space > (uint64_t)CONFIG_INITRAMFS_MAX_SIZE) {
+		space = (uint64_t)CONFIG_INITRAMFS_MAX_SIZE;
+	}
+
+	return (u32)space;
 }
 #endif
 
@@ -170,7 +205,7 @@ int main(void)
 	image.of_filename	   = dtb_filename;
 	image.initrd_filename = initrd_filename;
 
-	image.dtb_dest	  = (u8 *)(uintptr_t)(dram_get_top() - CONFIG_DTB_GUARD_SIZE);
+	image.dtb_dest	  = (u8 *)(uintptr_t)CONFIG_DTB_LOAD_ADDR;
 	image.kernel_dest = (u8 *)(uintptr_t)CONFIG_KERNEL_LOAD_ADDR;
 
 // Normal media boot
@@ -195,8 +230,21 @@ int main(void)
 			fatal("SMHC: card mount failed\r\n");
 		}
 
+		// load_sdmmc() only reads the initrd when it already has somewhere to
+		// put it, so hand it the window here. Without this the archive is
+		// silently skipped and the kernel comes up with no rootfs.
 		image.initrd_size = 0; // Set by load_sdmmc()
-		sd_boot_ready		  = true;
+		if (strlen(image.initrd_filename) > 0U) {
+			image.initrd_limit = initrd_capacity();
+			if (image.initrd_limit == 0U) {
+				fatal("BOOT: no DRAM above 0x%08" PRIx32 " for an initrd\r\n",
+							(uint32_t)CONFIG_INITRD_LOAD_ADDR);
+			}
+			image.initrd_dest = (u8 *)(uintptr_t)CONFIG_INITRD_LOAD_ADDR;
+			debug("BOOT: initrd window 0x%08" PRIx32 " + %" PRIu32 " bytes\r\n",
+						(uint32_t)CONFIG_INITRD_LOAD_ADDR, (uint32_t)image.initrd_limit);
+		}
+		sd_boot_ready = true;
 	}
 
 #elif CONFIG_BOOT_SPINAND
@@ -286,8 +334,7 @@ int main(void)
 	}
 
 	if ((image.initrd_size > 0U) && (image.initrd_dest == NULL)) {
-		uint64_t initrd_pos = dram_get_top() - (uint64_t)image.initrd_size;
-		image.initrd_dest   = (u8 *)(uintptr_t)initrd_pos;
+		image.initrd_dest = (u8 *)(uintptr_t)CONFIG_INITRD_LOAD_ADDR;
 	}
 
 	if (image.initrd_size > 0U) {
@@ -301,6 +348,16 @@ int main(void)
 		if (!range_in_sdram((uint32_t)initrd_start, image.initrd_size)) {
 			fatal("BOOT: initrd range 0x%08" PRIx32 "-0x%08" PRIx32 " invalid\r\n",
 						(uint32_t)initrd_start, (uint32_t)initrd_end);
+		}
+
+		// Nothing below the initrd needs checking here: the load map gives the
+		// kernel and the DTB fixed guard regions and load_sdmmc() bounds each
+		// read by its own guard, so neither can have grown into this one. The
+		// top is not covered by that, because the PSCI reserve is subtracted
+		// from what the kernel is told about rather than from the load map.
+		if (initrd_end > ((uintptr_t)dram_get_top() - (uintptr_t)CONFIG_PSCI_DRAM_RESERVE)) {
+			fatal("BOOT: initrd end 0x%08" PRIx32 " runs into the PSCI reserve\r\n",
+						(uint32_t)initrd_end);
 		}
 
 		if ((CONFIG_INITRD_ALIGNMENT != 0U) &&

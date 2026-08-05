@@ -6,7 +6,10 @@
 #if CONFIG_BOOT_SDCARD || CONFIG_BOOT_MMC
 int	 mount_sdmmc(void);
 void unmount_sdmmc(void);
-int	 read_file(const char *filename, uint8_t *dest);
+// Reads filename into dest, writing at most max bytes. A larger file fails
+// rather than running past the end of the caller's window: the size is only
+// known once the file has been read, so the bound is enforced as it streams.
+int	 read_file(const char *filename, uint8_t *dest, u32 max);
 int	 load_sdmmc(image_info_t *image);
 void sdmmc_speed_test(void);
 #endif

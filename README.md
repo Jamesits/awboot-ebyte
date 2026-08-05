@@ -37,7 +37,9 @@ This it not needed for writing to an SD card.
 ./tools/fel.sh path/to/zImage path/to/board.dtb [path/to/initrd]
 ```
 The script uploads the freshly built `awboot-fel.bin`, kernel, DTB and optional initrd, updates the FEL mailboxes and
-boots the SoC automatically.
+boots the SoC automatically. It places everything at the same addresses as the DRAM load map in `board.h`, and prints
+the map before uploading. For an out-of-tree build (`make O=…`), point it at the binary with
+`AWBOOT_BIN=path/to/build-fel/awboot-fel.bin`.
 
 ### FEL SPI NOR boot
 

@@ -52,6 +52,7 @@ typedef struct {
 
 	unsigned char *initrd_dest;
 	unsigned int   initrd_size;
+	unsigned int   initrd_limit; // bytes available at initrd_dest; 0 = no initrd
 
 	char *filename;
 	char *of_filename;
