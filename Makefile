@@ -28,6 +28,16 @@ LIB_DIR := -L ./
 LIBS := -lgcc -nostdlib
 DEFINES := -DLOG_LEVEL=$(LOG_LEVEL) -DBUILD_REVISION='"$(BUILD_REVISION)"'
 
+# Names awboot looks for on the boot media. board.h only supplies these when
+# they are not already defined, so a board can be retargeted from the command
+# line instead of by patching the header. Empty INITRD means "no initrd".
+KERNEL ?= zImage
+DTB    ?= sun8i-t113-mangopi-dual.dtb
+INITRD ?=
+DEFINES += -DCONFIG_KERNEL_FILENAME='"$(KERNEL)"'
+DEFINES += -DCONFIG_DTB_FILENAME='"$(DTB)"'
+DEFINES += -DCONFIG_INITRD_FILENAME='"$(INITRD)"'
+
 # A literal '#' for use inside shell/grep patterns. Writing '\#' directly leaks
 # the backslash through to the command, which GNU grep >= 3.12 warns about.
 HASH := \#
@@ -78,9 +88,6 @@ INVALID_VARIANTS := $(filter-out $(SUPPORTED_VARIANTS),$(BUILD_VARIANTS))
 ifneq ($(INVALID_VARIANTS),)
 $(error Unknown VARIANT(s): $(INVALID_VARIANTS). Supported: $(SUPPORTED_VARIANTS))
 endif
-
-DTB ?= sun8i-t113-mangopi-dual.dtb
-KERNEL ?= zImage
 
 all: git begin build mkboot
 

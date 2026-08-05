@@ -6,8 +6,12 @@
 #include "sunxi_usart.h"
 #include "sunxi_sdhci.h"
 
+#ifndef CONFIG_KERNEL_FILENAME
 #define CONFIG_KERNEL_FILENAME "zImage"
+#endif
+#ifndef CONFIG_DTB_FILENAME
 #define CONFIG_DTB_FILENAME	   "sun8i-t113-mangopi-dual.dtb"
+#endif
 #ifndef CONFIG_INITRD_FILENAME
 #define CONFIG_INITRD_FILENAME ""
 #endif
